@@ -1,63 +1,61 @@
-let board = [];
-let tileSize;
-let player;
-let ai;
+let cards = [];
+let flippedCards = [];
+let matchedCards = [];
+let cardWidth = 100;
+let cardHeight = 150;
+let rows = 4;
+let cols = 4;
 
 function setup() {
-  createCanvas(400, 400);
-  tileSize = width / 8;
-  player = 1;
-  ai = -1;
-  for (let i = 0; i < 8; i++) {
-    board[i] = [];
-    for (let j = 0; j < 8; j++) {
-      board[i][j] = 0;
-    }
+  createCanvas(800, 800);
+  for (let i = 0; i < rows * cols; i++) {
+    cards.push(i);
   }
-  board[3][3] = board[4][4] = 1;
-  board[3][4] = board[4][3] = -1;
+  cards = shuffle(cards);
 }
 
 function draw() {
-  background(200);
-  drawBoard();
-  drawTiles();
-}
-
-function drawBoard() {
-  strokeWeight(2);
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      let x = i * tileSize;
-      let y = j * tileSize;
-      fill(0, 255, 0);
-      rect(x, y, tileSize, tileSize);
-    }
-  }
-}
-
-function drawTiles() {
-  noStroke();
-  for (let i = 0; i < 8; i++) {
-    for (let j = 0; j < 8; j++) {
-      let x = i * tileSize + tileSize / 2;
-      let y = j * tileSize + tileSize / 2;
-      if (board[i][j] === 1) {
+  background(220);
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      let x = j * cardWidth + 50;
+      let y = i * cardHeight + 50;
+      let cardNumber = i * cols + j;
+      if (!flippedCards.includes(cardNumber) && !matchedCards.includes(cardNumber)) {
         fill(255);
-        ellipse(x, y, tileSize / 2);
-      } else if (board[i][j] === -1) {
+        rect(x, y, cardWidth, cardHeight);
+      } else if (flippedCards.includes(cardNumber)) {
+        fill(100);
+        rect(x, y, cardWidth, cardHeight);
+        fill(255);
+        text(cards[cardNumber], x + cardWidth / 2, y + cardHeight / 2);
+      } else if (matchedCards.includes(cardNumber)) {
         fill(0);
-        ellipse(x, y, tileSize / 2);
+        rect(x, y, cardWidth, cardHeight);
       }
     }
+  }
+  if (flippedCards.length == 2) {
+    if (cards[flippedCards[0]] == cards[flippedCards[1]]) {
+      matchedCards.push(flippedCards[0], flippedCards[1]);
+    }
+    flippedCards = [];
+  }
+  if (matchedCards.length == cards.length) {
+    textSize(32);
+    fill(255, 0, 0);
+    text('You Win!', width / 2, height / 2);
   }
 }
 
 function mousePressed() {
-  let i = floor(mouseX / tileSize);
-  let j = floor(mouseY / tileSize);
-  if (board[i][j] === 0) {
-    board[i][j] = player;
-    player *= -1;
+  let mX = Math.floor(mouseX / cardWidth);
+  let mY = Math.floor(mouseY / cardHeight);
+  let cardNumber = mY * cols + mX;
+  if (!flippedCards.includes(cardNumber) && !matchedCards.includes(cardNumber)) {
+    flippedCards.push(cardNumber);
+    if (flippedCards.length > 2) {
+      flippedCards.shift();
+    }
   }
 }
