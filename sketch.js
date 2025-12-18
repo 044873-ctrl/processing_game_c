@@ -1,135 +1,89 @@
-let invaders = [];
-let bullets = [];
-let player;
+let puck = {
+  x: 200,
+  y: 100,
+  vx: 2,
+  vy: -2,
+  size: 20
+};
+
+let player = {
+  x: 200,
+  y: 350,
+  vx: 0,
+  vy: 0,
+  size: 50
+};
+
+let ai = {
+  x: 200,
+  y: 50,
+  vx: 0,
+  vy: 0,
+  size: 50
+};
 
 function setup() {
-  createCanvas(800, 600);
-  player = new Player();
-  for (let i = 0; i < 6; i++) {
-    for (let j = 0; j < 10; j++) {
-      invaders.push(new Invader(j * 80 + 80, i * 60 + 60));
-    }
-  }
+  createCanvas(400, 400);
 }
 
 function draw() {
-  background(0);
-  player.show();
-  player.move();
+  background(220);
 
-  for (let i = 0; i < bullets.length; i++) {
-    bullets[i].show();
-    bullets[i].move();
-    for (let j = 0; j < invaders.length; j++) {
-      if (bullets[i].hits(invaders[j])) {
-        bullets[i].evaporate();
-        invaders[j].evaporate();
-      }
-    }
+  ellipse(puck.x, puck.y, puck.size);
+
+  if (keyIsDown(LEFT_ARROW)) {
+    player.vx = -5;
+  } else if (keyIsDown(RIGHT_ARROW)) {
+    player.vx = 5;
+  } else {
+    player.vx = 0;
   }
 
-  for (let i = invaders.length - 1; i >= 0; i--) {
-    invaders[i].show();
-    invaders[i].move();
-    if (invaders[i].toDelete) {
-      invaders.splice(i, 1);
-    }
+  if (keyIsDown(UP_ARROW)) {
+    player.vy = -5;
+  } else if (keyIsDown(DOWN_ARROW)) {
+    player.vy = 5;
+  } else {
+    player.vy = 0;
   }
 
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    if (bullets[i].toDelete) {
-      bullets.splice(i, 1);
-    }
-  }
-}
+  player.x += player.vx;
+  player.y += player.vy;
 
-function keyReleased() {
-  player.setDir(0);
-}
+  player.x = constrain(player.x, 0, width);
+  player.y = constrain(player.y, 0, height);
 
-function keyPressed() {
-  if (key === ' ') {
-    let bullet = new Bullet(player.x, height);
-    bullets.push(bullet);
-  }
+  ai.x = constrain(ai.x, 0, width);
+  ai.y = constrain(ai.y, 0, height);
 
-  if (keyCode === RIGHT_ARROW) {
-    player.setDir(1);
-  } else if (keyCode === LEFT_ARROW) {
-    player.setDir(-1);
-  }
-}
+  ai.x += (puck.x - ai.x) * 0.05;
+  ai.y += (puck.y - ai.y) * 0.05;
 
-class Player {
-  constructor() {
-    this.x = width / 2;
-    this.xdir = 0;
+  ellipse(player.x, player.y, player.size);
+  ellipse(ai.x, ai.y, ai.size);
+
+  puck.x += puck.vx;
+  puck.y += puck.vy;
+
+  if (puck.y < 0 || puck.y > height) {
+    puck.vy = -puck.vy;
   }
 
-  show() {
-    fill(255);
-    rectMode(CENTER);
-    rect(this.x, height - 20, 20, 60);
+  if (puck.x < 0 || puck.x > width) {
+    puck.vx = -puck.vx;
   }
 
-  setDir(dir) {
-    this.xdir = dir;
+  let d1 = dist(puck.x, puck.y, player.x, player.y);
+  if (d1 < puck.size / 2 + player.size / 2) {
+    let angle = atan2(player.y - puck.y, player.x - puck.x);
+    puck.vx = 5 * cos(angle);
+    puck.vy = 5 * sin(angle);
   }
 
-  move(dir) {
-    this.x += this.xdir * 5;
-  }
-}
-
-class Bullet {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.toDelete = false;
-  }
-
-  show() {
-    fill(50, 0, 200);
-    ellipse(this.x, this.y, 4, 4);
-  }
-
-  evaporate() {
-    this.toDelete = true;
-  }
-
-  hits(invader) {
-    let d = dist(this.x, this.y, invader.x, invader.y);
-    if (d < this.r + invader.r) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  move() {
-    this.y = this.y - 5;
-  }
-}
-
-class Invader {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.r = 30;
-    this.toDelete = false;
-  }
-
-  show() {
-    fill(255, 0, 200);
-    ellipse(this.x, this.y, this.r * 2, this.r * 2);
-  }
-
-  evaporate() {
-    this.toDelete = true;
-  }
-
-  move() {
-    this.x = this.x + random(-1, 1);
-    this.y = this.y + random(-1, 1);
+  let d2 = dist(puck.x, puck.y, ai.x, ai.y);
+  if (d2 < puck.size / 2 + ai.size / 2) {
+    let angle = atan2(ai.y - puck.y, ai.x - puck.x);
+    puck.vx = 5 * cos(angle);
+    puck.vy = 5 * sin(angle);
   }
 }
