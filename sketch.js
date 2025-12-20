@@ -1,89 +1,140 @@
-let puck = {
-  x: 200,
-  y: 100,
-  vx: 2,
-  vy: -2,
-  size: 20
-};
-
-let player = {
-  x: 200,
-  y: 350,
-  vx: 0,
-  vy: 0,
-  size: 50
-};
-
-let ai = {
-  x: 200,
-  y: 50,
-  vx: 0,
-  vy: 0,
-  size: 50
-};
-
+let canvasW = 600;
+let canvasH = 400;
+let paddleW = 10;
+let paddleH = 80;
+let playerX;
+let cpuX;
+let playerY;
+let cpuY;
+let playerSpeed = 6;
+let cpuMaxSpeed = 5;
+let cpuMiss = false;
+let cpuMissTimer = 0;
+let cpuTargetCenter = 0;
+let ball = { x: 0, y: 0, vx: 4, vy: 3, r: 8 };
+let playerScore = 0;
+let cpuScore = 0;
 function setup() {
-  createCanvas(400, 400);
+  createCanvas(canvasW, canvasH);
+  playerX = 20;
+  cpuX = width - 20 - paddleW;
+  playerY = (height - paddleH) / 2;
+  cpuY = (height - paddleH) / 2;
+  cpuTargetCenter = cpuY + paddleH / 2;
+  resetBall(0);
+  frameRate(60);
+  textSize(24);
+  textAlign(CENTER, TOP);
 }
-
+function resetBall(scoredBy) {
+  ball.x = width / 2;
+  ball.y = height / 2;
+  ball.vx = 4;
+  ball.vy = 3;
+  if (scoredBy === 1) {
+    ball.vx = 4;
+  } else if (scoredBy === -1) {
+    ball.vx = -4;
+  } else {
+    ball.vx = random() < 0.5 ? 4 : -4;
+  }
+  if (random() < 0.5) {
+    ball.vy = 3;
+  } else {
+    ball.vy = -3;
+  }
+}
 function draw() {
-  background(220);
-
-  ellipse(puck.x, puck.y, puck.size);
-
-  if (keyIsDown(LEFT_ARROW)) {
-    player.vx = -5;
-  } else if (keyIsDown(RIGHT_ARROW)) {
-    player.vx = 5;
-  } else {
-    player.vx = 0;
-  }
-
+  background(0);
+  fill(255);
+  rect(playerX, playerY, paddleW, paddleH);
+  rect(cpuX, cpuY, paddleW, paddleH);
+  ellipse(ball.x, ball.y, ball.r * 2, ball.r * 2);
+  fill(255);
+  text(playerScore, width * 0.25, 10);
+  text(cpuScore, width * 0.75, 10);
+  handlePlayerInput();
+  updateCPU();
+  updateBall();
+}
+function handlePlayerInput() {
   if (keyIsDown(UP_ARROW)) {
-    player.vy = -5;
-  } else if (keyIsDown(DOWN_ARROW)) {
-    player.vy = 5;
+    playerY -= playerSpeed;
+  }
+  if (keyIsDown(DOWN_ARROW)) {
+    playerY += playerSpeed;
+  }
+  playerY = constrain(playerY, 0, height - paddleH);
+}
+function updateCPU() {
+  if (cpuMiss) {
+    cpuMissTimer -= 1;
+    if (cpuMissTimer <= 0) {
+      cpuMiss = false;
+      cpuMissTimer = 0;
+    }
   } else {
-    player.vy = 0;
+    if (ball.vx > 0 && ball.x > width / 2) {
+      if (random() < 0.01) {
+        cpuMiss = true;
+        cpuMissTimer = 30;
+        cpuTargetCenter = random(paddleH / 2, height - paddleH / 2);
+      }
+    }
   }
-
-  player.x += player.vx;
-  player.y += player.vy;
-
-  player.x = constrain(player.x, 0, width);
-  player.y = constrain(player.y, 0, height);
-
-  ai.x = constrain(ai.x, 0, width);
-  ai.y = constrain(ai.y, 0, height);
-
-  ai.x += (puck.x - ai.x) * 0.05;
-  ai.y += (puck.y - ai.y) * 0.05;
-
-  ellipse(player.x, player.y, player.size);
-  ellipse(ai.x, ai.y, ai.size);
-
-  puck.x += puck.vx;
-  puck.y += puck.vy;
-
-  if (puck.y < 0 || puck.y > height) {
-    puck.vy = -puck.vy;
+  let targetCenter = 0;
+  if (cpuMiss) {
+    targetCenter = cpuTargetCenter;
+  } else {
+    targetCenter = ball.y;
   }
-
-  if (puck.x < 0 || puck.x > width) {
-    puck.vx = -puck.vx;
+  let cpuCenter = cpuY + paddleH / 2;
+  let dy = targetCenter - cpuCenter;
+  let move = 0;
+  if (abs(dy) > 0) {
+    move = constrain(dy, -cpuMaxSpeed, cpuMaxSpeed);
   }
-
-  let d1 = dist(puck.x, puck.y, player.x, player.y);
-  if (d1 < puck.size / 2 + player.size / 2) {
-    let angle = atan2(player.y - puck.y, player.x - puck.x);
-    puck.vx = 5 * cos(angle);
-    puck.vy = 5 * sin(angle);
+  cpuY += move;
+  cpuY = constrain(cpuY, 0, height - paddleH);
+}
+function updateBall() {
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  if (ball.y - ball.r <= 0) {
+    ball.y = ball.r;
+    ball.vy = -ball.vy;
   }
-
-  let d2 = dist(puck.x, puck.y, ai.x, ai.y);
-  if (d2 < puck.size / 2 + ai.size / 2) {
-    let angle = atan2(ai.y - puck.y, ai.x - puck.x);
-    puck.vx = 5 * cos(angle);
-    puck.vy = 5 * sin(angle);
+  if (ball.y + ball.r >= height) {
+    ball.y = height - ball.r;
+    ball.vy = -ball.vy;
+  }
+  if (ball.x - ball.r <= playerX + paddleW && ball.x - ball.r >= playerX) {
+    if (ball.y >= playerY && ball.y <= playerY + paddleH) {
+      ball.x = playerX + paddleW + ball.r;
+      ball.vx = -ball.vx;
+      let paddleCenter = playerY + paddleH / 2;
+      let delta = ball.y - paddleCenter;
+      let norm = delta / (paddleH / 2);
+      ball.vy = ball.vy + norm * 4;
+      ball.vy = constrain(ball.vy, -8, 8);
+    }
+  }
+  if (ball.x + ball.r >= cpuX && ball.x + ball.r <= cpuX + paddleW) {
+    if (ball.y >= cpuY && ball.y <= cpuY + paddleH) {
+      ball.x = cpuX - ball.r;
+      ball.vx = -ball.vx;
+      let paddleCenter = cpuY + paddleH / 2;
+      let delta = ball.y - paddleCenter;
+      let norm = delta / (paddleH / 2);
+      ball.vy = ball.vy + norm * 4;
+      ball.vy = constrain(ball.vy, -8, 8);
+    }
+  }
+  if (ball.x + ball.r < 0) {
+    cpuScore += 1;
+    resetBall(-1);
+  } else if (ball.x - ball.r > width) {
+    playerScore += 1;
+    resetBall(1);
   }
 }
