@@ -1,272 +1,236 @@
-let cellSize = 50;
-let cols = 8;
-let rows = 8;
+let cols = 10;
+let rows = 20;
+let cellSize = 30;
 let board = [];
-let currentPlayer = 1;
+let shapes = {};
+let shapeTypes = [];
+let currentPiece = null;
+let dropCounter = 0;
+let dropIntervalDefault = 30;
+let dropIntervalFast = 2;
+let score = 0;
 let gameOver = false;
-let dirs = [
-  [-1, -1],
-  [-1, 0],
-  [-1, 1],
-  [0, -1],
-  [0, 1],
-  [1, -1],
-  [1, 0],
-  [1, 1]
-];
-function initBoard() {
-  board = [];
-  for (let r = 0; r < rows; r++) {
-    let row = [];
-    for (let c = 0; c < cols; c++) {
-      row.push(0);
+function rotateMatrix(mat){
+  let res = [];
+  for(let r = 0; r < 4; r++){
+    res[r] = [];
+    for(let c = 0; c < 4; c++){
+      res[r][c] = mat[3 - c][r];
     }
-    board.push(row);
   }
-  board[3][3] = 2;
-  board[3][4] = 1;
-  board[4][3] = 1;
-  board[4][4] = 2;
-  currentPlayer = 1;
-  gameOver = false;
+  return res;
 }
-function inBounds(r, c) {
-  return r >= 0 && r < rows && c >= 0 && c < cols;
-}
-function getFlips(r, c, player, boardState) {
-  let flips = [];
-  if (!inBounds(r, c)) {
-    return flips;
-  }
-  if (boardState[r][c] !== 0) {
-    return flips;
-  }
-  let opponent = player === 1 ? 2 : 1;
-  for (let d = 0; d < dirs.length; d++) {
-    let dr = dirs[d][0];
-    let dc = dirs[d][1];
-    let tr = r + dr;
-    let tc = c + dc;
-    let line = [];
-    while (inBounds(tr, tc) && boardState[tr][tc] === opponent) {
-      line.push([tr, tc]);
-      tr += dr;
-      tc += dc;
+function getShapeMatrix(piece){
+  let base = shapes[piece.type];
+  let mat = [];
+  for(let r = 0; r < 4; r++){
+    mat[r] = [];
+    for(let c = 0; c < 4; c++){
+      mat[r][c] = base[r][c];
     }
-    if (line.length > 0 && inBounds(tr, tc) && boardState[tr][tc] === player) {
-      for (let k = 0; k < line.length; k++) {
-        flips.push(line[k]);
+  }
+  for(let i = 0; i < piece.rotation; i++){
+    mat = rotateMatrix(mat);
+  }
+  return mat;
+}
+function validMove(x,y,mat){
+  for(let r = 0; r < 4; r++){
+    for(let c = 0; c < 4; c++){
+      if(mat[r][c] === 0){
+        continue;
       }
-    }
-  }
-  return flips;
-}
-function getValidMoves(player, boardState) {
-  let moves = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (boardState[r][c] === 0) {
-        let flips = getFlips(r, c, player, boardState);
-        if (flips.length > 0) {
-          moves.push({ r: r, c: c, flips: flips });
+      let bx = x + c;
+      let by = y + r;
+      if(bx < 0 || bx >= cols){
+        return false;
+      }
+      if(by >= rows){
+        return false;
+      }
+      if(by >= 0){
+        if(board[by][bx] !== 0){
+          return false;
         }
       }
     }
   }
-  return moves;
+  return true;
 }
-function applyMove(r, c, player, flips, boardState) {
-  if (!inBounds(r, c)) {
-    return;
-  }
-  boardState[r][c] = player;
-  for (let i = 0; i < flips.length; i++) {
-    let pos = flips[i];
-    let fr = pos[0];
-    let fc = pos[1];
-    if (inBounds(fr, fc)) {
-      boardState[fr][fc] = player;
-    }
-  }
-}
-function countScores(boardState) {
-  let black = 0;
-  let white = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if (boardState[r][c] === 1) {
-        black++;
-      } else if (boardState[r][c] === 2) {
-        white++;
-      }
-    }
-  }
-  return { black: black, white: white };
-}
-function aiChooseMove(player, boardState) {
-  let moves = getValidMoves(player, boardState);
-  if (moves.length === 0) {
-    return null;
-  }
-  let best = moves[0];
-  let bestScore = best.flips.length;
-  for (let i = 1; i < moves.length; i++) {
-    let m = moves[i];
-    let s = m.flips.length;
-    if (s > bestScore) {
-      best = m;
-      bestScore = s;
-    }
-  }
-  return best;
-}
-function performAITurns() {
-  let loopGuard = 0;
-  while (currentPlayer === 2 && loopGuard < 100) {
-    loopGuard++;
-    let aiMove = aiChooseMove(2, board);
-    if (aiMove === null) {
-      let playerMovesAfterPass = getValidMoves(1, board);
-      if (playerMovesAfterPass.length === 0) {
-        gameOver = true;
-        return;
-      } else {
-        currentPlayer = 1;
-        return;
-      }
-    } else {
-      applyMove(aiMove.r, aiMove.c, 2, aiMove.flips, board);
-      currentPlayer = 1;
-      let playerMoves = getValidMoves(1, board);
-      if (playerMoves.length === 0) {
-        currentPlayer = 2;
+function lockPiece(){
+  let mat = getShapeMatrix(currentPiece);
+  for(let r = 0; r < 4; r++){
+    for(let c = 0; c < 4; c++){
+      if(mat[r][c] === 0){
         continue;
-      } else {
-        return;
+      }
+      let bx = currentPiece.x + c;
+      let by = currentPiece.y + r;
+      if(by >= 0 && by < rows && bx >= 0 && bx < cols){
+        board[by][bx] = currentPiece.color;
       }
     }
   }
-  if (loopGuard >= 100) {
+  clearLines();
+  spawnPiece();
+}
+function clearLines(){
+  let linesCleared = 0;
+  for(let r = rows - 1; r >= 0; r--){
+    let full = true;
+    for(let c = 0; c < cols; c++){
+      if(board[r][c] === 0){
+        full = false;
+        break;
+      }
+    }
+    if(full){
+      linesCleared++;
+      board.splice(r,1);
+      let newRow = [];
+      for(let c = 0; c < cols; c++){
+        newRow[c] = 0;
+      }
+      board.unshift(newRow);
+      r++;
+    }
+  }
+  if(linesCleared > 0){
+    score += linesCleared * 100;
+  }
+}
+function spawnPiece(){
+  let idx = floor(random(shapeTypes.length));
+  let type = shapeTypes[idx];
+  let piece = {type:type, rotation:0, x:3, y:-1, color:idx+1};
+  if(!validMove(piece.x, piece.y, getShapeMatrix(piece))){
     gameOver = true;
-  }
-}
-function setup() {
-  createCanvas(400, 400);
-  initBoard();
-}
-function drawBoard() {
-  background(34, 139, 34);
-  stroke(0);
-  for (let i = 0; i <= cols; i++) {
-    line(i * cellSize, 0, i * cellSize, rows * cellSize);
-  }
-  for (let j = 0; j <= rows; j++) {
-    line(0, j * cellSize, cols * cellSize, j * cellSize);
-  }
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      let v = board[r][c];
-      if (v === 1) {
-        fill(0);
-        ellipse(c * cellSize + cellSize / 2, r * cellSize + cellSize / 2, cellSize * 0.8, cellSize * 0.8);
-      } else if (v === 2) {
-        fill(255);
-        ellipse(c * cellSize + cellSize / 2, r * cellSize + cellSize / 2, cellSize * 0.8, cellSize * 0.8);
-      }
-    }
-  }
-}
-function drawHighlights() {
-  let moves = getValidMoves(1, board);
-  noStroke();
-  fill(255, 255, 0, 150);
-  for (let i = 0; i < moves.length; i++) {
-    let m = moves[i];
-    rect(m.c * cellSize + cellSize * 0.25, m.r * cellSize + cellSize * 0.25, cellSize * 0.5, cellSize * 0.5, 4);
-  }
-}
-function drawHUD() {
-  let scores = countScores(board);
-  noStroke();
-  fill(0);
-  rect(0, rows * cellSize, width, height - rows * cellSize);
-  fill(0);
-  textSize(14);
-  fill(0);
-  let bx = 10;
-  let by = rows * cellSize + 20;
-  fill(0);
-  ellipse(bx + 10, by, 14, 14);
-  fill(255);
-  text(String(scores.black), bx + 30, by + 5);
-  fill(255);
-  ellipse(bx + 90, by, 14, 14);
-  fill(0);
-  text(String(scores.white), bx + 110, by + 5);
-  if (gameOver) {
-    fill(255, 0, 0);
-    textSize(18);
-    textAlign(CENTER, CENTER);
-    if (scores.black > scores.white) {
-      text("Black wins", width / 2, height - 12);
-    } else if (scores.white > scores.black) {
-      text("White wins", width / 2, height - 12);
-    } else {
-      text("Draw", width / 2, height - 12);
-    }
-    textAlign(LEFT, BASELINE);
   } else {
-    textSize(14);
-    fill(0);
-    textAlign(LEFT, BASELINE);
-    if (currentPlayer === 1) {
-      text("Black to move", 150, rows * cellSize + 5);
+    currentPiece = piece;
+  }
+}
+function movePiece(dx){
+  if(currentPiece === null){
+    return;
+  }
+  let nx = currentPiece.x + dx;
+  let ny = currentPiece.y;
+  let mat = getShapeMatrix(currentPiece);
+  if(validMove(nx, ny, mat)){
+    currentPiece.x = nx;
+  }
+}
+function softDrop(){
+  if(currentPiece === null){
+    return;
+  }
+  let nx = currentPiece.x;
+  let ny = currentPiece.y + 1;
+  let mat = getShapeMatrix(currentPiece);
+  if(validMove(nx, ny, mat)){
+    currentPiece.y = ny;
+  } else {
+    lockPiece();
+  }
+}
+function hardDrop(){
+  if(currentPiece === null){
+    return;
+  }
+  while(true){
+    let nx = currentPiece.x;
+    let ny = currentPiece.y + 1;
+    let mat = getShapeMatrix(currentPiece);
+    if(validMove(nx, ny, mat)){
+      currentPiece.y = ny;
     } else {
-      text("White to move", 150, rows * cellSize + 5);
-    }
-    textAlign(LEFT, BASELINE);
-  }
-}
-function draw() {
-  drawBoard();
-  if (!gameOver) {
-    drawHighlights();
-  }
-  drawHUD();
-}
-function mousePressed() {
-  if (gameOver) {
-    initBoard();
-    return;
-  }
-  if (mouseX < 0 || mouseX >= cols * cellSize || mouseY < 0 || mouseY >= rows * cellSize) {
-    return;
-  }
-  if (currentPlayer !== 1) {
-    return;
-  }
-  let c = Math.floor(mouseX / cellSize);
-  let r = Math.floor(mouseY / cellSize);
-  if (!inBounds(r, c)) {
-    return;
-  }
-  let moves = getValidMoves(1, board);
-  let chosen = null;
-  for (let i = 0; i < moves.length; i++) {
-    if (moves[i].r === r && moves[i].c === c) {
-      chosen = moves[i];
       break;
     }
   }
-  if (chosen === null) {
+  lockPiece();
+}
+function rotatePiece(){
+  if(currentPiece === null){
     return;
   }
-  applyMove(r, c, 1, chosen.flips, board);
-  currentPlayer = 2;
-  performAITurns();
-  let movesAfter = getValidMoves(1, board);
-  let movesAI = getValidMoves(2, board);
-  if (movesAfter.length === 0 && movesAI.length === 0) {
-    gameOver = true;
+  let newRotation = (currentPiece.rotation + 1) % 4;
+  let testPiece = {type:currentPiece.type, rotation:newRotation, x:currentPiece.x, y:currentPiece.y, color:currentPiece.color};
+  let mat = getShapeMatrix(testPiece);
+  let kicks = [0, -1, 1, -2, 2];
+  let success = false;
+  for(let i = 0; i < kicks.length; i++){
+    let nx = testPiece.x + kicks[i];
+    if(validMove(nx, testPiece.y, mat)){
+      currentPiece.rotation = newRotation;
+      currentPiece.x = nx;
+      success = true;
+      break;
+    }
+  }
+  if(!success){
+    return;
   }
 }
+function drawCell(x,y,colId){
+  if(colId === 0){
+    return;
+  }
+  let colors = [
+    [0,0,0],
+    [0,255,255],
+    [255,255,0],
+    [128,0,128],
+    [255,165,0],
+    [0,0,255],
+    [0,255,0],
+    [255,0,0]
+  ];
+  let c = colors[colId] || [255,255,255];
+  fill(c[0], c[1], c[2]);
+  stroke(50);
+  rect(x * cellSize, y * cellSize, cellSize, cellSize);
+}
+function initShapes(){
+  shapes["I"] = [
+    [0,0,0,0],
+    [1,1,1,1],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapes["O"] = [
+    [0,1,1,0],
+    [0,1,1,0],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapes["T"] = [
+    [0,1,0,0],
+    [1,1,1,0],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapes["L"] = [
+    [0,0,1,0],
+    [1,1,1,0],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapes["J"] = [
+    [1,0,0,0],
+    [1,1,1,0],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapes["S"] = [
+    [0,1,1,0],
+    [1,1,0,0],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapes["Z"] = [
+    [1,1,0,0],
+    [0,1,1,0],
+    [0,0,0,0],
+    [0,0,0,0]
+  ];
+  shapeTypes = ["I","O","T","L","J",
