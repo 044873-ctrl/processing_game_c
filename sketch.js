@@ -1,140 +1,212 @@
-let canvasW = 600;
-let canvasH = 400;
-let paddleW = 10;
-let paddleH = 80;
-let playerX;
-let cpuX;
-let playerY;
-let cpuY;
-let playerSpeed = 6;
-let cpuMaxSpeed = 5;
-let cpuMiss = false;
-let cpuMissTimer = 0;
-let cpuTargetCenter = 0;
-let ball = { x: 0, y: 0, vx: 4, vy: 3, r: 8 };
-let playerScore = 0;
-let cpuScore = 0;
-function setup() {
-  createCanvas(canvasW, canvasH);
-  playerX = 20;
-  cpuX = width - 20 - paddleW;
-  playerY = (height - paddleH) / 2;
-  cpuY = (height - paddleH) / 2;
-  cpuTargetCenter = cpuY + paddleH / 2;
-  resetBall(0);
+let board;
+let currentPlayer;
+let cellSize;
+let gameOver;
+let winner;
+let passCount;
+const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+function setup(){
+  createCanvas(400,400);
   frameRate(60);
-  textSize(24);
-  textAlign(CENTER, TOP);
+  cellSize = 50;
+  initBoard();
+  currentPlayer = 1;
+  gameOver = false;
+  winner = 0;
+  passCount = 0;
+  textAlign(CENTER, CENTER);
+  textSize(14);
 }
-function resetBall(scoredBy) {
-  ball.x = width / 2;
-  ball.y = height / 2;
-  ball.vx = 4;
-  ball.vy = 3;
-  if (scoredBy === 1) {
-    ball.vx = 4;
-  } else if (scoredBy === -1) {
-    ball.vx = -4;
-  } else {
-    ball.vx = random() < 0.5 ? 4 : -4;
-  }
-  if (random() < 0.5) {
-    ball.vy = 3;
-  } else {
-    ball.vy = -3;
-  }
-}
-function draw() {
-  background(0);
-  fill(255);
-  rect(playerX, playerY, paddleW, paddleH);
-  rect(cpuX, cpuY, paddleW, paddleH);
-  ellipse(ball.x, ball.y, ball.r * 2, ball.r * 2);
-  fill(255);
-  text(playerScore, width * 0.25, 10);
-  text(cpuScore, width * 0.75, 10);
-  handlePlayerInput();
-  updateCPU();
-  updateBall();
-}
-function handlePlayerInput() {
-  if (keyIsDown(UP_ARROW)) {
-    playerY -= playerSpeed;
-  }
-  if (keyIsDown(DOWN_ARROW)) {
-    playerY += playerSpeed;
-  }
-  playerY = constrain(playerY, 0, height - paddleH);
-}
-function updateCPU() {
-  if (cpuMiss) {
-    cpuMissTimer -= 1;
-    if (cpuMissTimer <= 0) {
-      cpuMiss = false;
-      cpuMissTimer = 0;
+function draw(){
+  background(34,139,34);
+  drawGrid();
+  drawDiscs();
+  if(!gameOver){
+    let moves = legalMoves(currentPlayer);
+    for(let k=0;k<moves.length;k++){
+      let r = moves[k].r;
+      let c = moves[k].c;
+      fill(255,255,0,150);
+      noStroke();
+      ellipse(c*cellSize+cellSize/2, r*cellSize+cellSize/2, cellSize*0.25, cellSize*0.25);
     }
-  } else {
-    if (ball.vx > 0 && ball.x > width / 2) {
-      if (random() < 0.01) {
-        cpuMiss = true;
-        cpuMissTimer = 30;
-        cpuTargetCenter = random(paddleH / 2, height - paddleH / 2);
+  }
+  drawScores();
+  if(gameOver){
+    drawGameOver();
+  }
+}
+function initBoard(){
+  board = [];
+  for(let r=0;r<8;r++){
+    let row = [];
+    for(let c=0;c<8;c++){
+      row.push(0);
+    }
+    board.push(row);
+  }
+  board[3][3] = 2;
+  board[3][4] = 1;
+  board[4][3] = 1;
+  board[4][4] = 2;
+}
+function inBounds(r,c){
+  return r>=0 && r<8 && c>=0 && c<8;
+}
+function getFlips(r,c,player){
+  let flipsAll = [];
+  if(!inBounds(r,c)) return flipsAll;
+  if(board[r][c] !== 0) return flipsAll;
+  let opponent = player === 1 ? 2 : 1;
+  for(let d=0;d<DIRS.length;d++){
+    let dr = DIRS[d][0];
+    let dc = DIRS[d][1];
+    let rr = r + dr;
+    let cc = c + dc;
+    let flipsDir = [];
+    while(inBounds(rr,cc) && board[rr][cc] === opponent){
+      flipsDir.push([rr,cc]);
+      rr += dr;
+      cc += dc;
+    }
+    if(inBounds(rr,cc) && board[rr][cc] === player && flipsDir.length>0){
+      for(let f=0;f<flipsDir.length;f++){
+        flipsAll.push(flipsDir[f]);
       }
     }
   }
-  let targetCenter = 0;
-  if (cpuMiss) {
-    targetCenter = cpuTargetCenter;
-  } else {
-    targetCenter = ball.y;
-  }
-  let cpuCenter = cpuY + paddleH / 2;
-  let dy = targetCenter - cpuCenter;
-  let move = 0;
-  if (abs(dy) > 0) {
-    move = constrain(dy, -cpuMaxSpeed, cpuMaxSpeed);
-  }
-  cpuY += move;
-  cpuY = constrain(cpuY, 0, height - paddleH);
+  return flipsAll;
 }
-function updateBall() {
-  ball.x += ball.vx;
-  ball.y += ball.vy;
-  if (ball.y - ball.r <= 0) {
-    ball.y = ball.r;
-    ball.vy = -ball.vy;
-  }
-  if (ball.y + ball.r >= height) {
-    ball.y = height - ball.r;
-    ball.vy = -ball.vy;
-  }
-  if (ball.x - ball.r <= playerX + paddleW && ball.x - ball.r >= playerX) {
-    if (ball.y >= playerY && ball.y <= playerY + paddleH) {
-      ball.x = playerX + paddleW + ball.r;
-      ball.vx = -ball.vx;
-      let paddleCenter = playerY + paddleH / 2;
-      let delta = ball.y - paddleCenter;
-      let norm = delta / (paddleH / 2);
-      ball.vy = ball.vy + norm * 4;
-      ball.vy = constrain(ball.vy, -8, 8);
+function legalMoves(player){
+  let moves = [];
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      let flips = getFlips(r,c,player);
+      if(flips.length>0){
+        moves.push({r:r,c:c,flips:flips});
+      }
     }
   }
-  if (ball.x + ball.r >= cpuX && ball.x + ball.r <= cpuX + paddleW) {
-    if (ball.y >= cpuY && ball.y <= cpuY + paddleH) {
-      ball.x = cpuX - ball.r;
-      ball.vx = -ball.vx;
-      let paddleCenter = cpuY + paddleH / 2;
-      let delta = ball.y - paddleCenter;
-      let norm = delta / (paddleH / 2);
-      ball.vy = ball.vy + norm * 4;
-      ball.vy = constrain(ball.vy, -8, 8);
-    }
+  return moves;
+}
+function placeDisc(r,c,player){
+  let flips = getFlips(r,c,player);
+  if(flips.length===0) return false;
+  board[r][c] = player;
+  for(let i=0;i<flips.length;i++){
+    let pos = flips[i];
+    board[pos[0]][pos[1]] = player;
   }
-  if (ball.x + ball.r < 0) {
-    cpuScore += 1;
-    resetBall(-1);
-  } else if (ball.x - ball.r > width) {
-    playerScore += 1;
-    resetBall(1);
+  return true;
+}
+function mousePressed(){
+  if(gameOver) return;
+  if(mouseButton !== LEFT) return;
+  if(currentPlayer !== 1) return;
+  if(mouseX < 0 || mouseX >= width || mouseY < 0 || mouseY >= height) return;
+  let col = Math.floor(mouseX / cellSize);
+  let row = Math.floor(mouseY / cellSize);
+  if(!inBounds(row,col)) return;
+  let moved = placeDisc(row,col,1);
+  if(moved){
+    passCount = 0;
+    currentPlayer = 2;
+    handleTurnFlow();
   }
 }
+function handleTurnFlow(){
+  if(gameOver) return;
+  let attempts = 0;
+  while(true){
+    attempts++;
+    if(attempts>100) break;
+    let moves = legalMoves(currentPlayer);
+    if(moves.length===0){
+      passCount++;
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
+      if(passCount>=2){
+        endGame();
+        return;
+      }
+      continue;
+    } else {
+      passCount = 0;
+    }
+    if(currentPlayer === 2){
+      aiMove();
+      currentPlayer = 1;
+      let playerMoves = legalMoves(1);
+      if(playerMoves.length===0){
+        currentPlayer = 2;
+        continue;
+      } else {
+        return;
+      }
+    } else {
+      return;
+    }
+  }
+}
+function aiMove(){
+  let moves = legalMoves(2);
+  if(moves.length===0) return;
+  let bestIndex = 0;
+  let bestCount = -1;
+  for(let i=0;i<moves.length;i++){
+    let cnt = moves[i].flips.length;
+    if(cnt>bestCount){
+      bestCount = cnt;
+      bestIndex = i;
+    }
+  }
+  let choice = moves[bestIndex];
+  placeDisc(choice.r, choice.c, 2);
+}
+function endGame(){
+  gameOver = true;
+  let score = countScores();
+  if(score.black > score.white) winner = 1;
+  else if(score.white > score.black) winner = 2;
+  else winner = 0;
+}
+function countScores(){
+  let black = 0;
+  let white = 0;
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      if(board[r][c]===1) black++;
+      else if(board[r][c]===2) white++;
+    }
+  }
+  return {black:black, white:white};
+}
+function drawGrid(){
+  stroke(0);
+  strokeWeight(1);
+  for(let i=0;i<=8;i++){
+    line(0, i*cellSize, 8*cellSize, i*cellSize);
+    line(i*cellSize, 0, i*cellSize, 8*cellSize);
+  }
+}
+function drawDiscs(){
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      let val = board[r][c];
+      if(val===0) continue;
+      if(val===1){
+        fill(0);
+      } else {
+        fill(255);
+      }
+      noStroke();
+      ellipse(c*cellSize+cellSize/2, r*cellSize+cellSize/2, cellSize*0.8, cellSize*0.8);
+    }
+  }
+}
+function drawScores(){
+  let sc = countScores();
+  fill(255);
+  noStroke();
+  rect(0, height-30, width, 30);
+  fill(0);
+  text(
