@@ -1,173 +1,270 @@
-let playerX;
-let playerY;
-let playerSpeed;
-let playerRadius;
-let bullets;
-let enemies;
-let particles;
-let stars;
-let score;
-let gameOver;
-let prevSpace;
-function setup(){
-  createCanvas(400,600);
-  playerX = width/2;
-  playerY = height - 40;
-  playerSpeed = 15;
-  playerRadius = 14;
-  bullets = [];
-  enemies = [];
-  particles = [];
-  stars = [];
-  score = 0;
-  gameOver = false;
-  prevSpace = false;
-  for(let i=0;i<30;i++){
-    let s = {
-      x: random(0,width),
-      y: random(0,height),
-      r: random(1,3),
-      vy: random(1,3)
-    };
-    stars.push(s);
+let canvasWidth = 600;
+let canvasHeight = 800;
+let player = {
+  x: canvasWidth / 2,
+  y: canvasHeight - 60,
+  w: 48,
+  h: 32,
+  speed: 6,
+  cooldown: 0,
+  maxCooldown: 12,
+  lives: 3
+};
+let bullets = [];
+let enemies = [];
+let enemyBullets = [];
+let score = 0;
+let gameState = "play";
+let enemySpawnTimer = 0;
+let enemySpawnInterval = 60;
+let difficultyTimer = 0;
+let maxEnemies = 6;
+function setup() {
+  createCanvas(canvasWidth, canvasHeight);
+  rectMode(CENTER);
+  noStroke();
+  textAlign(LEFT, TOP);
+  textSize(18);
+}
+function draw() {
+  background(12);
+  if (gameState === "play") {
+    handleInput();
+    updatePlayer();
+    spawnEnemies();
+    updateBullets();
+    updateEnemies();
+    updateEnemyBullets();
+    detectCollisions();
+    difficultyTimer++;
+    if (difficultyTimer % 600 === 0 && difficultyTimer > 0) {
+      if (enemySpawnInterval > 20) {
+        enemySpawnInterval = enemySpawnInterval - 6;
+      }
+      if (maxEnemies < 14) {
+        maxEnemies = maxEnemies + 1;
+      }
+    }
+  }
+  drawPlayer();
+  drawBullets();
+  drawEnemies();
+  drawEnemyBullets();
+  drawHUD();
+  if (gameState === "gameover") {
+    fill(255, 220, 0);
+    textAlign(CENTER, CENTER);
+    textSize(36);
+    text("GAME OVER", canvasWidth / 2, canvasHeight / 2 - 30);
+    textSize(18);
+    text("Click to restart", canvasWidth / 2, canvasHeight / 2 + 20);
+    textAlign(LEFT, TOP);
+    textSize(18);
+  }
+  if (player.lives <= 0 && gameState !== "gameover") {
+    gameState = "gameover";
+  }
+  if (player.cooldown > 0) {
+    player.cooldown = player.cooldown - 1;
+    if (player.cooldown < 0) {
+      player.cooldown = 0;
+    }
   }
 }
-function draw(){
-  background(0);
-  for(let i=0;i<stars.length;i++){
-    let s = stars[i];
-    fill(255);
-    noStroke();
-    ellipse(s.x, s.y, s.r*2, s.r*2);
-    s.y += s.vy;
-    if(s.y - s.r > height){
-      s.x = random(0,width);
-      s.y = -s.r;
-      s.vy = random(1,3);
-      s.r = random(1,3);
-    }
+function handleInput() {
+  if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
+    player.x = player.x - player.speed;
   }
-  if(!gameOver){
-    if(keyIsDown(LEFT_ARROW)){
-      playerX -= playerSpeed;
-    }
-    if(keyIsDown(RIGHT_ARROW)){
-      playerX += playerSpeed;
-    }
-    if(playerX - playerRadius < 0){
-      playerX = playerRadius;
-    }
-    if(playerX + playerRadius > width){
-      playerX = width - playerRadius;
-    }
-    let spaceDown = keyIsDown(32);
-    if(spaceDown && !prevSpace){
-      let b = {
-        x: playerX,
-        y: playerY - playerRadius - 1,
-        r: 100,
-        vy: -20
-      };
-      bullets.push(b);
-    }
-    prevSpace = spaceDown;
-    if(frameCount % 60 === 0){
+  if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
+    player.x = player.x + player.speed;
+  }
+  player.x = constrain(player.x, player.w / 2, canvasWidth - player.w / 2);
+  if ((keyIsDown(32) || keyIsDown(87) || keyIsDown(UP_ARROW)) && player.cooldown === 0) {
+    shootPlayer();
+    player.cooldown = player.maxCooldown;
+  }
+}
+function shootPlayer() {
+  let b = {
+    x: player.x,
+    y: player.y - player.h / 2 - 6,
+    r: 6,
+    speed: 10
+  };
+  bullets.push(b);
+}
+function updatePlayer() {
+}
+function spawnEnemies() {
+  enemySpawnTimer++;
+  if (enemySpawnTimer >= enemySpawnInterval) {
+    enemySpawnTimer = 0;
+    if (enemies.length < maxEnemies) {
+      let ex = Math.floor(random(30, canvasWidth - 30));
+      let etype = Math.floor(random(0, 3));
       let e = {
-        x: random(12, width-12),
-        y: -12,
-        r: 12,
-        vy: 20
+        x: ex,
+        y: -30,
+        w: 40,
+        h: 28,
+        speed: 1 + random(0, 1.6),
+        type: etype,
+        hp: etype === 2 ? 3 : 1,
+        oscillation: random(0, TWO_PI),
+        shotCooldown: Math.floor(random(60, 180))
       };
       enemies.push(e);
     }
-    for(let i=bullets.length-1;i>=0;i--){
-      let b = bullets[i];
-      b.y += b.vy;
-      if(b.y + b.r < 0){
-        bullets.splice(i,1);
+  }
+}
+function updateBullets() {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let b = bullets[i];
+    b.y = b.y - b.speed;
+    if (b.y < -10) {
+      bullets.splice(i, 1);
+    }
+  }
+}
+function updateEnemies() {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let e = enemies[i];
+    e.y = e.y + e.speed;
+    if (e.type === 1) {
+      e.x = e.x + sin(e.oscillation) * 1.8;
+      e.oscillation = e.oscillation + 0.08;
+    } else if (e.type === 2) {
+      e.x = e.x + sin(e.oscillation) * 2.6;
+      e.oscillation = e.oscillation + 0.06;
+    }
+    e.shotCooldown = e.shotCooldown - 1;
+    if (e.shotCooldown <= 0) {
+      e.shotCooldown = Math.floor(random(80, 200));
+      let eb = {
+        x: e.x,
+        y: e.y + e.h / 2 + 6,
+        r: 6,
+        speed: 4 + random(0, 2)
+      };
+      enemyBullets.push(eb);
+    }
+    if (e.y > canvasHeight + 40) {
+      enemies.splice(i, 1);
+      player.lives = player.lives - 1;
+      if (player.lives < 0) {
+        player.lives = 0;
+      }
+    } else {
+      if (e.x < e.w / 2) {
+        e.x = e.w / 2;
+      }
+      if (e.x > canvasWidth - e.w / 2) {
+        e.x = canvasWidth - e.w / 2;
       }
     }
-    for(let i=enemies.length-1;i>=0;i--){
-      let e = enemies[i];
-      e.y += e.vy;
-      if(e.y - e.r > height){
-        enemies.splice(i,1);
-      }
+  }
+}
+function updateEnemyBullets() {
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    let eb = enemyBullets[i];
+    eb.y = eb.y + eb.speed;
+    if (eb.y > canvasHeight + 20) {
+      enemyBullets.splice(i, 1);
     }
-    for(let i=enemies.length-1;i>=0;i--){
-      let e = enemies[i];
-      for(let j=bullets.length-1;j>=0;j--){
-        let b = bullets[j];
-        let d = dist(e.x,e.y,b.x,b.y);
-        if(d <= e.r + b.r){
-          for(let k=0;k<5;k++){
-            let ang = random(0, TWO_PI);
-            let sp = random(1,4);
-            let p = {
-              x: e.x,
-              y: e.y,
-              vx: cos(ang)*sp,
-              vy: sin(ang)*sp,
-              r: 3,
-              life: 20
-            };
-            particles.push(p);
-          }
-          score += 1;
-          enemies.splice(i,1);
-          bullets.splice(j,1);
-          break;
+  }
+}
+function detectCollisions() {
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let b = bullets[i];
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let e = enemies[j];
+      if (circleRectCollision(b.x, b.y, b.r, e.x, e.y, e.w, e.h)) {
+        bullets.splice(i, 1);
+        e.hp = e.hp - 1;
+        if (e.hp <= 0) {
+          score = score + 100;
+          enemies.splice(j, 1);
         }
-      }
-    }
-    for(let i=particles.length-1;i>=0;i--){
-      let p = particles[i];
-      p.x += p.vx;
-      p.y += p.vy;
-      p.life -= 1;
-      if(p.life <= 0){
-        particles.splice(i,1);
-      }
-    }
-    for(let i=enemies.length-1;i>=0;i--){
-      let e = enemies[i];
-      let d = dist(e.x,e.y,playerX,playerY);
-      if(d <= e.r + playerRadius){
-        gameOver = true;
         break;
       }
     }
-  } else {
-    prevSpace = keyIsDown(32);
   }
-  fill(0,0,255);
-  noStroke();
-  ellipse(playerX, playerY, playerRadius*2, playerRadius*2);
-  fill(0,255,255,150);
-  noStroke();
-  for(let i=0;i<bullets.length;i++){
-    let b = bullets[i];
-    ellipse(b.x, b.y, b.r*2, b.r*2);
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    let eb = enemyBullets[i];
+    if (circleRectCollision(eb.x, eb.y, eb.r, player.x, player.y, player.w, player.h)) {
+      enemyBullets.splice(i, 1);
+      player.lives = player.lives - 1;
+      if (player.lives < 0) {
+        player.lives = 0;
+      }
+    }
   }
-  fill(255,0,0);
-  noStroke();
-  for(let i=0;i<enemies.length;i++){
+  for (let i = enemies.length - 1; i >= 0; i--) {
     let e = enemies[i];
-    ellipse(e.x, e.y, e.r*2, e.r*2);
-  }
-  for(let i=0;i<particles.length;i++){
-    let p = particles[i];
-    fill(255,200,0, map(p.life,0,20,0,255));
-    ellipse(p.x, p.y, p.r*2, p.r*2);
-  }
-  fill(255);
-  textSize(24);
-  textAlign(LEFT,TOP);
-  text("Score: "+score,10,10);
-  if(gameOver){
-    textSize(48);
-    textAlign(CENTER,CENTER);
-    fill(255,0,0);
-    text("GAME OVER", width/2, height/2);
+    if (rectRectCollision(e.x, e.y, e.w, e.h, player.x, player.y, player.w, player.h)) {
+      enemies.splice(i, 1);
+      player.lives = player.lives - 1;
+      if (player.lives < 0) {
+        player.lives = 0;
+      }
+    }
   }
 }
+function circleRectCollision(cx, cy, cr, rx, ry, rw, rh) {
+  let rxLeft = rx - rw / 2;
+  let rxTop = ry - rh / 2;
+  let closestX = cx;
+  let closestY = cy;
+  if (cx < rxLeft) {
+    closestX = rxLeft;
+  } else if (cx > rxLeft + rw) {
+    closestX = rxLeft + rw;
+  }
+  if (cy < rxTop) {
+    closestY = rxTop;
+  } else if (cy > rxTop + rh) {
+    closestY = rxTop + rh;
+  }
+  let dx = cx - closestX;
+  let dy = cy - closestY;
+  let distSq = dx * dx + dy * dy;
+  return distSq <= cr * cr;
+}
+function rectRectCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+  let left1 = x1 - w1 / 2;
+  let right1 = x1 + w1 / 2;
+  let top1 = y1 - h1 / 2;
+  let bottom1 = y1 + h1 / 2;
+  let left2 = x2 - w2 / 2;
+  let right2 = x2 + w2 / 2;
+  let top2 = y2 - h2 / 2;
+  let bottom2 = y2 + h2 / 2;
+  return !(left1 > right2 || right1 < left2 || top1 > bottom2 || bottom1 < top2);
+}
+function drawPlayer() {
+  fill(80, 180, 255);
+  rect(player.x, player.y, player.w, player.h, 6);
+  fill(200);
+  rect(player.x, player.y - 8, player.w * 0.5, 8, 4);
+}
+function drawBullets() {
+  fill(255, 255, 100);
+  for (let i = 0; i < bullets.length; i++) {
+    let b = bullets[i];
+    ellipse(b.x, b.y, b.r * 2, b.r * 2);
+  }
+}
+function drawEnemies() {
+  for (let i = 0; i < enemies.length; i++) {
+    let e = enemies[i];
+    if (e.type === 0) {
+      fill(255, 100, 100);
+    } else if (e.type === 1) {
+      fill(255, 160, 60);
+    } else {
+      fill(200, 100, 255);
+    }
+    rect(e.x, e.y, e.w, e.h, 4);
+    if (e.hp > 1) {
+      fill(0);
+      let hpText = 
