@@ -1,244 +1,218 @@
-var paddle;
-var ball;
-var blocks;
-var particles;
-var score;
-var gameOver;
-var rows;
-var cols;
-var blockW;
-var blockH;
-var colors;
-function setup(){
-  createCanvas(400,600);
-  rows = 6;
-  cols = 7;
-  blockW = Math.floor(width/cols);
-  blockH = 24;
-  colors = [
-    color(255,102,102),
-    color(255,178,102),
-    color(255,255,102),
-    color(178,255,102),
-    color(102,255,178),
-    color(102,178,255)
-  ];
-  paddle = {
-    w:90,
-    h:12,
-    x:width/2,
-    y:height-40
-  };
-  ball = {
-    x:width/2,
-    y:height/2,
-    r:6,
-    vx:4,
-    vy:-5
-  };
-  blocks = [];
-  particles = [];
+let CANVAS_W = 400;
+let CANVAS_H = 600;
+let paddle = {};
+let ball = {};
+let blocks = [];
+let particles = [];
+let rows = 6;
+let cols = 7;
+let rowColors = [];
+let score = 0;
+let gameOver = false;
+function setup() {
+  createCanvas(CANVAS_W, CANVAS_H);
+  rectMode(CENTER);
+  ellipseMode(CENTER);
+  paddle.w = 90;
+  paddle.h = 12;
+  paddle.x = width / 2;
+  paddle.y = height - 40;
+  ball.r = 6;
+  ball.x = width / 2;
+  ball.y = paddle.y - paddle.h / 2 - ball.r - 2;
+  ball.vx = 4;
+  ball.vy = -5;
+  ball.active = true;
+  rowColors = ['#ff6b6b', '#ffb86b', '#ffe66b', '#6bff8f', '#6bcfff', '#b36bff'];
+  createBlocks();
   score = 0;
   gameOver = false;
-  createBlocks();
 }
-function createBlocks(){
+function createBlocks() {
   blocks = [];
-  for(var r=0;r<rows;r++){
-    for(var c=0;c<cols;c++){
-      var bx = c*blockW;
-      var by = 40 + r*(blockH+6);
-      var block = {
-        x:bx,
-        y:by,
-        w:blockW-4,
-        h:blockH,
-        col:colors[r]
+  let marginX = 30;
+  let spacing = 6;
+  let blockW = (width - marginX * 2 - (cols - 1) * spacing) / cols;
+  let blockH = 20;
+  let startY = 60;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      let bx = marginX + c * (blockW + spacing);
+      let by = startY + r * (blockH + spacing);
+      let block = {
+        x: bx,
+        y: by,
+        w: blockW,
+        h: blockH,
+        row: r,
+        col: c,
+        alive: true,
+        color: rowColors[r % rowColors.length]
       };
       blocks.push(block);
     }
   }
 }
-function draw(){
+function draw() {
   background(30);
-  if(gameOver===false){
-    updatePaddle();
+  updatePaddle();
+  if (!gameOver) {
     updateBall();
-    updateParticles();
     checkBlockCollisions();
-    checkPaddleCollision();
-  } else {
-    updateParticles();
   }
+  updateParticles();
   drawBlocks();
   drawPaddle();
   drawBall();
-  drawParticles();
   drawUI();
+  if (gameOver) {
+    drawGameOver();
+  }
 }
-function updatePaddle(){
-  var mx = mouseX;
-  var half = paddle.w/2;
-  var nx = constrain(mx,half,width-half);
-  paddle.x = nx;
+function updatePaddle() {
+  let targetX = mouseX;
+  paddle.x = constrain(targetX, paddle.w / 2, width - paddle.w / 2);
 }
-function updateBall(){
+function updateBall() {
   ball.x += ball.vx;
   ball.y += ball.vy;
-  if(ball.x - ball.r < 0){
+  if (ball.x - ball.r < 0) {
     ball.x = ball.r;
     ball.vx = -ball.vx;
-  } else if(ball.x + ball.r > width){
+  }
+  if (ball.x + ball.r > width) {
     ball.x = width - ball.r;
     ball.vx = -ball.vx;
   }
-  if(ball.y - ball.r < 0){
+  if (ball.y - ball.r < 0) {
     ball.y = ball.r;
     ball.vy = -ball.vy;
   }
-  if(ball.y - ball.r > height){
+  if (ball.y - ball.r > height) {
+    gameOver = true;
     ball.vx = 0;
     ball.vy = 0;
-    gameOver = true;
+    ball.active = false;
+  }
+  if (ball.vy > 0) {
+    let paddleTop = paddle.y - paddle.h / 2;
+    let paddleLeft = paddle.x - paddle.w / 2;
+    let paddleRight = paddle.x + paddle.w / 2;
+    if (ball.y + ball.r >= paddleTop && ball.y - ball.r <= paddle.y + paddle.h / 2 && ball.x >= paddleLeft && ball.x <= paddleRight) {
+      let relativeX = (ball.x - paddle.x) / (paddle.w / 2);
+      relativeX = constrain(relativeX, -1, 1);
+      let maxAngle = PI / 3;
+      let angle = relativeX * maxAngle;
+      let speed = sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+      ball.vx = speed * sin(angle);
+      ball.vy = -abs(speed * cos(angle));
+      ball.y = paddleTop - ball.r - 0.1;
+    }
   }
 }
-function checkPaddleCollision(){
-  var rx = paddle.x - paddle.w/2;
-  var ry = paddle.y - paddle.h/2;
-  var closestX = constrain(ball.x,rx,rx+paddle.w);
-  var closestY = constrain(ball.y,ry,ry+paddle.h);
-  var dx = ball.x - closestX;
-  var dy = ball.y - closestY;
-  var dist2 = dx*dx + dy*dy;
-  if(dist2 <= ball.r*ball.r && ball.vy > 0){
-    var offset = (ball.x - paddle.x) / (paddle.w/2);
-    if(offset < -1){ offset = -1; }
-    if(offset > 1){ offset = 1; }
-    var maxAngle = PI/3;
-    var angle = offset * maxAngle;
-    var speed = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
-    ball.vx = speed * Math.sin(angle);
-    ball.vy = -Math.abs(speed * Math.cos(angle));
-    ball.y = ry - ball.r - 0.1;
-  }
-}
-function checkBlockCollisions(){
-  var i;
-  for(i=blocks.length-1;i>=0;i--){
-    var b = blocks[i];
-    var closestX = constrain(ball.x,b.x,b.x+b.w);
-    var closestY = constrain(ball.y,b.y,b.y+b.h);
-    var dx = ball.x - closestX;
-    var dy = ball.y - closestY;
-    var dist2 = dx*dx + dy*dy;
-    if(dist2 <= ball.r*ball.r){
-      spawnParticles(closestX,closestY,b.col);
-      blocks.splice(i,1);
+function checkBlockCollisions() {
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    let b = blocks[i];
+    if (!b.alive) {
+      blocks.splice(i, 1);
+      continue;
+    }
+    if (circleRectCollision(ball.x, ball.y, ball.r, b.x, b.y, b.w, b.h)) {
+      b.alive = false;
+      blocks.splice(i, 1);
       score += 10;
-      var nx = dx;
-      var ny = dy;
-      var len = Math.sqrt(nx*nx + ny*ny);
-      var newVx;
-      var newVy;
-      var oldVx = ball.vx;
-      var oldVy = ball.vy;
-      var oldSpeed = Math.sqrt(oldVx*oldVx + oldVy*oldVy);
-      if(len === 0){
-        nx = 0;
-        ny = -1;
-      } else {
-        nx = nx/len;
-        ny = ny/len;
+      for (let pcount = 0; pcount < 3; pcount++) {
+        let angle = random(0, TWO_PI);
+        let speed = random(1, 3);
+        let pvx = cos(angle) * speed;
+        let pvy = sin(angle) * speed;
+        let px = b.x + b.w / 2;
+        let py = b.y + b.h / 2;
+        let particle = { x: px, y: py, vx: pvx, vy: pvy, life: 15, color: b.color };
+        particles.push(particle);
       }
-      var dot = oldVx*nx + oldVy*ny;
-      newVx = oldVx - 2*dot*nx;
-      newVy = oldVy - 2*dot*ny;
-      var newSpeed = Math.sqrt(newVx*newVx + newVy*newVy);
-      if(newSpeed === 0){
-        newVx = oldVx;
-        newVy = -oldVy;
+      let overlapX = (ball.x > b.x + b.w / 2) ? (ball.x - (b.x + b.w / 2)) : ((b.x - b.w / 2) - ball.x);
+      let overlapY = (ball.y > b.y + b.h / 2) ? (ball.y - (b.y + b.h / 2)) : ((b.y - b.h / 2) - ball.y);
+      if (abs(overlapX) > abs(overlapY)) {
+        ball.vx = -ball.vx;
       } else {
-        var scale = oldSpeed / newSpeed;
-        newVx *= scale;
-        newVy *= scale;
+        ball.vy = -ball.vy;
       }
-      ball.vx = newVx;
-      ball.vy = newVy;
       break;
     }
   }
 }
-function spawnParticles(x,y(col),col){
-}
-function spawnParticles(x,y,c){
-  var j;
-  for(j=0;j<3;j++){
-    var angle = random(0,PI*2);
-    var speed = random(1,3);
-    var p = {
-      x:x,
-      y:y,
-      vx:Math.cos(angle)*speed,
-      vy:Math.sin(angle)*speed,
-      life:15,
-      col:c
-    };
-    particles.push(p);
+function circleRectCollision(cx, cy, cr, rx, ry, rw, rh) {
+  let rectCenterX = rx + rw / 2;
+  let rectCenterY = ry + rh / 2;
+  let dx = abs(cx - rectCenterX);
+  let dy = abs(cy - rectCenterY);
+  if (dx > (rw / 2 + cr)) {
+    return false;
   }
+  if (dy > (rh / 2 + cr)) {
+    return false;
+  }
+  if (dx <= (rw / 2)) {
+    return true;
+  }
+  if (dy <= (rh / 2)) {
+    return true;
+  }
+  let cornerDistSq = (dx - rw / 2) * (dx - rw / 2) + (dy - rh / 2) * (dy - rh / 2);
+  return cornerDistSq <= (cr * cr);
 }
-function updateParticles(){
-  var k;
-  for(k=particles.length-1;k>=0;k--){
-    var p = particles[k];
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    let p = particles[i];
     p.x += p.vx;
     p.y += p.vy;
+    p.vy += 0.1;
     p.life -= 1;
-    if(p.life <= 0){
-      particles.splice(k,1);
+    if (p.life <= 0) {
+      particles.splice(i, 1);
     }
   }
 }
-function drawBlocks(){
-  var m;
-  for(m=0;m<blocks.length;m++){
-    var b = blocks[m];
-    fill(b.col);
-    noStroke();
-    rect(b.x,b.y,b.w,b.h);
+function drawBlocks() {
+  noStroke();
+  for (let i = 0; i < blocks.length; i++) {
+    let b = blocks[i];
+    fill(b.color);
+    rect(b.x + b.w / 2, b.y + b.h / 2, b.w, b.h);
   }
 }
-function drawPaddle(){
+function drawPaddle() {
   fill(200);
-  noStroke();
-  rectMode(CENTER);
-  rect(paddle.x,paddle.y,paddle.w,paddle.h);
-  rectMode(CORNER);
+  rect(paddle.x, paddle.y, paddle.w, paddle.h);
 }
-function drawBall(){
+function drawBall() {
   fill(255);
-  noStroke();
-  ellipse(ball.x,ball.y,ball.r*2,ball.r*2);
+  ellipse(ball.x, ball.y, ball.r * 2, ball.r * 2);
 }
-function drawParticles(){
-  var n;
-  for(n=0;n<particles.length;n++){
-    var p = particles[n];
-    var alpha = map(p.life,0,15,0,255);
-    fill(red(p.col),green(p.col),blue(p.col),alpha);
-    noStroke();
-    ellipse(p.x,p.y,4,4);
-  }
-}
-function drawUI(){
+function drawUI() {
   fill(255);
   textSize(16);
-  textAlign(LEFT,TOP);
-  text("Score: "+score,10,10);
-  if(gameOver){
-    textSize(32);
-    textAlign(CENTER,CENTER);
-    text("GAME OVER",width/2,height/2);
-    textSize(14);
-    text("Refresh to play again",width/2,height/2+40);
+  textAlign(LEFT, TOP);
+  text('Score: ' + score, 10, 10);
+  for (let i = 0; i < particles.length; i++) {
+    let p = particles[i];
+    let alpha = map(p.life, 0, 15, 0, 255);
+    fill(colorAlpha(p.color, alpha));
+    ellipse(p.x, p.y, 6, 6);
   }
+}
+function drawGameOver() {
+  fill(0, 180);
+  rect(width / 2, height / 2, width, height);
+  fill(255);
+  textSize(32);
+  textAlign(CENTER, CENTER);
+  text('Game Over', width / 2, height / 2 - 20);
+  textSize(20);
+  text('Score: ' + score, width / 2, height / 2 + 20);
+}
+function colorAlpha(hex, a) {
+  let c = color(hex);
+  return color(red(c), green(c), blue(c), a);
 }
