@@ -65,7 +65,7 @@ function draw(){
     for(let i=enemies.length-1;i>=0;i--){
       let e = enemies[i];
       e.y += e.vy;
-      fill(255,0,0);
+      fill(255,255,0);
       ellipse(e.x,e.y,e.r*2,e.r*2);
       if(dist(e.x,e.y,player.x,player.y) <= e.r + player.r){
         gameOver = true;
