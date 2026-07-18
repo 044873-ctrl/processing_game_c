@@ -1,1 +1,105 @@
-let canvasW=600,canvasH=400;let paddleW=10,paddleH=80;let playerX=10;let cpuX=canvasW-paddleW-10;let playerY,cpuY;let playerSpeed=6;let cpuMaxSpeed=5;let cpuMiss=false;let cpuMissTimer=0;let cpuMissDuration=30;let cpuTargetY=0;let cpuMissChance=0.003;let ballX,ballY,ballR=8;let ballVX=4,ballVY=3;let leftScore=0,rightScore=0;function setup(){createCanvas(canvasW,canvasH);playerY=(canvasH-paddleH)/2;cpuY=(canvasH-paddleH)/2;ballX=canvasW/2;ballY=canvasH/2;textSize(32);textAlign(CENTER,CENTER);}function draw(){background(0);fill(255);for(let i=10;i<canvasH;i+=20){rect(canvasW/2-1,i,2,10);}if(keyIsDown(UP_ARROW)){playerY-=playerSpeed;}if(keyIsDown(DOWN_ARROW)){playerY+=playerSpeed;}playerY=constrain(playerY,0,canvasH-paddleH);if(cpuMissTimer>0){cpuMissTimer--;if(cpuMissTimer===0){cpuMiss=false;}}else{if(ballVX>0&&random()<cpuMissChance){cpuMiss=true;cpuMissTimer=cpuMissDuration;cpuTargetY=random(0,canvasH-paddleH);}}let targetY;if(cpuMiss){targetY=cpuTargetY;}else{targetY=ballY-paddleH/2;targetY=constrain(targetY,0,canvasH-paddleH);}let diff=targetY-cpuY;let move=0;if(diff>cpuMaxSpeed)move=cpuMaxSpeed;else if(diff<-cpuMaxSpeed)move=-cpuMaxSpeed;else move=diff;cpuY+=move;cpuY=constrain(cpuY,0,canvasH-paddleH);ballX+=ballVX;ballY+=ballVY;if(ballY-ballR<=0){ballY=ballR;ballVY=-ballVY;}if(ballY+ballR>=canvasH){ballY=canvasH-ballR;ballVY=-ballVY;}if(ballX-ballR<=playerX+paddleW){if(ballY>=playerY&&ballY<=playerY+paddleH){ballX=playerX+paddleW+ballR;ballVX=abs(ballVX);let center=playerY+paddleH/2;let delta=(ballY-center)/(paddleH/2);ballVY=delta*5;}}if(ballX+ballR>=cpuX){if(ballY>=cpuY&&ballY<=cpuY+paddleH){ballX=cpuX-ballR;ballVX=-abs(ballVX);let center2=cpuY+paddleH/2;let delta2=(ballY-center2)/(paddleH/2);ballVY=delta2*5;}}if(ballX<0){rightScore++;ballX=canvasW/2;ballY=canvasH/2;ballVX=4;ballVY=random(-3,3);}else if(ballX>canvasW){leftScore++;ballX=canvasW/2;ballY=canvasH/2;ballVX=-4;ballVY=random(-3,3);}fill(255);rect(playerX,playerY,paddleW,paddleH);rect(cpuX,cpuY,paddleW,paddleH);ellipse(ballX,ballY,ballR*2,ballR*2);textAlign(CENTER);text(leftScore,canvasW*0.25,30);text(rightScore,canvasW*0.75,30);}
+let canvasW=600,canvasH=400;
+let paddleW=10,paddleH=80;
+let playerX=10;
+let cpuX=canvasW-paddleW-10;
+let playerY,cpuY;
+let playerSpeed=6;
+let cpuMaxSpeed=5;
+let cpuMiss=false;
+let cpuMissTimer=0;
+let cpuMissDuration=30;
+let cpuTargetY=0;
+let cpuMissChance=0.003;
+let ballX,ballY,ballR=8;
+let ballVX=4,ballVY=3;
+let leftScore=0,rightScore=0;
+function setup(){
+createCanvas(canvasW,canvasH);
+playerY=(canvasH-paddleH)/2;
+cpuY=(canvasH-paddleH)/2;
+ballX=canvasW/2;
+ballY=canvasH/2;
+textSize(32);
+textAlign(CENTER,CENTER);
+}
+function draw(){
+background(0);
+fill(255);
+for(let i=10;i<canvasH;i+=20){rect(canvasW/2-1,i,2,10);}
+if(keyIsDown(UP_ARROW)){playerY-=playerSpeed;}
+if(keyIsDown(DOWN_ARROW)){playerY+=playerSpeed;}
+playerY=constrain(playerY,0,canvasH-paddleH);
+if(cpuMissTimer>0){
+cpuMissTimer--;
+if(cpuMissTimer===0){cpuMiss=false;}
+}else{
+if(ballVX>0&&random()<cpuMissChance){
+cpuMiss=true;
+cpuMissTimer=cpuMissDuration;
+cpuTargetY=random(0,canvasH-paddleH);
+}
+}
+let targetY;
+if(cpuMiss){
+targetY=cpuTargetY;
+}else{
+targetY=ballY-paddleH/2;
+targetY=constrain(targetY,0,canvasH-paddleH);
+}
+let diff=targetY-cpuY;
+let move=0;
+if(diff>cpuMaxSpeed)move=cpuMaxSpeed;
+else if(diff<-cpuMaxSpeed)move=-cpuMaxSpeed;
+else move=diff;
+cpuY+=move;
+cpuY=constrain(cpuY,0,canvasH-paddleH);
+ballX+=ballVX;
+ballY+=ballVY;
+if(ballY-ballR<=0){
+ballY=ballR;
+ballVY=-ballVY;
+}
+if(ballY+ballR>=canvasH){
+ballY=canvasH-ballR;
+ballVY=-ballVY;
+}
+if(ballX-ballR<=playerX+paddleW){
+if(ballY>=playerY&&ballY<=playerY+paddleH){
+ballX=playerX+paddleW+ballR;
+ballVX=abs(ballVX);
+let center=playerY+paddleH/2;
+let delta=(ballY-center)/(paddleH/2);
+ballVY=delta*5;
+}
+}
+if(ballX+ballR>=cpuX){
+if(ballY>=cpuY&&ballY<=cpuY+paddleH){
+ballX=cpuX-ballR;
+ballVX=-abs(ballVX);
+let center2=cpuY+paddleH/2;
+let delta2=(ballY-center2)/(paddleH/2);
+ballVY=delta2*5;
+}
+}
+if(ballX<0){
+rightScore++;
+ballX=canvasW/2;
+ballY=canvasH/2;
+ballVX=4;
+ballVY=random(-3,3);
+}else if(ballX>canvasW){
+leftScore++;
+ballX=canvasW/2;
+ballY=canvasH/2;
+ballVX=-4;
+ballVY=random(-3,3);
+}
+fill(255);
+rect(playerX,playerY,paddleW,paddleH);
+rect(cpuX,cpuY,paddleW,paddleH);
+fill(255,0,0);
+ellipse(ballX,ballY,ballR*2,ballR*2);
+textAlign(CENTER);
+text(leftScore,canvasW*0.25,30);
+text(rightScore,canvasW*0.75,30);
+}
