@@ -1,1 +1,129 @@
-let canvasW=400;let canvasH=600;let paddle={w:90,h:12,x:200,y:560};let ball={r:6,x:canvasW/2,y:canvasH-60,vx:4,vy:-5};let blocks=[];let rows=6;let cols=7;let blockW=0;let blockH=20;let blockPadding=6;let blockOffsetTop=60;let blockOffsetLeft=20;let colors=['#e74c3c','#e67e22','#f1c40f','#2ecc71','#3498db','#9b59b6'];let particles=[];let score=0;let gameOver=false;let initialSpeed=Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy);function setup(){createCanvas(canvasW,canvasH);paddle.y=canvasH-40;initBlocks();ellipseMode(RADIUS);noStroke();textAlign(LEFT,TOP);}function initBlocks(){blockW=(canvasW-blockOffsetLeft*2-(cols-1)*blockPadding)/cols;for(let r=0;r<rows;r++){for(let c=0;c<cols;c++){let bx=blockOffsetLeft+c*(blockW+blockPadding);let by=blockOffsetTop+r*(blockH+blockPadding);let b={x:bx,y:by,w:blockW,h:blockH,row:r,color:colors[r]};blocks.push(b);}}}function circleRectCollision(cx,cy,r,rx,ry,rw,rh){let nearestX=constrain(cx,rx,rx+rw);let nearestY=constrain(cy,ry,ry+rh);let dx=cx-nearestX;let dy=cy-nearestY;return dx*dx+dy*dy<=r*r;}function updatePaddle(){paddle.x=constrain(mouseX,paddle.w/2,canvasW-paddle.w/2);}function spawnParticles(px,py,col){for(let i=0;i<3;i++){let angle=random(0,Math.PI*2);let speed=random(1,3);let pvx=Math.cos(angle)*speed;let pvy=Math.sin(angle)*speed;let p={x:px,y:py,vx:pvx,vy:pvy,life:15,color:col};particles.push(p);} }function updateBall(){if(gameOver){return;}ball.x+=ball.vx;ball.y+=ball.vy;if(ball.x-ball.r<0){ball.x=ball.r;ball.vx=Math.abs(ball.vx);}if(ball.x+ball.r>canvasW){ball.x=canvasW-ball.r;ball.vx=-Math.abs(ball.vx);}if(ball.y-ball.r<0){ball.y=ball.r;ball.vy=Math.abs(ball.vy);}let paddleRectX=paddle.x-paddle.w/2;let paddleRectY=paddle.y-paddle.h/2;let prevX=ball.x-ball.vx;let prevY=ball.y-ball.vy;if(circleRectCollision(ball.x,ball.y,ball.r,paddleRectX,paddleRectY,paddle.w,paddle.h) && ball.vy>0){let relative=(ball.x-paddle.x)/(paddle.w/2);relative=constrain(relative,-1,1);let angle=relative*(Math.PI/3);let speed=initialSpeed;ball.vx=speed*Math.sin(angle);ball.vy=-Math.abs(speed*Math.cos(angle));ball.y=paddleRectY-ball.r-0.1;}for(let i=blocks.length-1;i>=0;i--){let b=blocks[i];if(circleRectCollision(ball.x,ball.y,ball.r,b.x,b.y,b.w,b.h)){let nearestX=constrain(ball.x,b.x,b.x+b.w);let nearestY=constrain(ball.y,b.y,b.y+b.h);spawnParticles(nearestX,nearestY,b.color);blocks.splice(i,1);score++;let wasPrevAbove=prevY+ball.r<=b.y;let wasPrevBelow=prevY-ball.r>=b.y+b.h;if(wasPrevAbove||wasPrevBelow){ball.vy*=-1;}else{ball.vx*=-1;}break;}}if(ball.y-ball.r>canvasH){gameOver=true;}}function updateParticles(){for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;if(p.life<=0){particles.splice(i,1);}}}function drawBlocks(){for(let i=0;i<blocks.length;i++){let b=blocks[i];fill(b.color);rect(b.x,b.y,b.w,b.h);}}function drawPaddle(){fill(200);rect(paddle.x-paddle.w/2,paddle.y-paddle.h/2,paddle.w,paddle.h,4);}function drawBall(){fill(255);ellipse(ball.x,ball.y,ball.r,ball.r);}function drawParticles(){for(let i=0;i<particles.length;i++){let p=particles[i];fill(p.color);ellipse(p.x,p.y,3,3);}}function drawUI(){fill(255);textSize(18);text('Score: '+score,10,10);if(gameOver){textAlign(CENTER,CENTER);textSize(36);fill(255,200,0);text('GAME OVER',canvasW/2,canvasH/2);textAlign(LEFT,TOP);}}function draw(){background(30);updatePaddle();updateBall();updateParticles();drawBlocks();drawPaddle();drawBall();drawParticles();drawUI();}
+var bullets=[];
+var enemies=[];
+var particles=[];
+var stars=[];
+var player={x:200,y:560,r:12,speed:5};
+var score=0;
+var gameOver=false;
+var prevSpace=false;
+function spawnEnemy(){
+  var e={x:random(12,width-12),y:-12,r:12,spd:2};
+  enemies.push(e);
+}
+function spawnBullet(){
+  var b={x:player.x,y:player.y-player.r,r:4,spd:8};
+  bullets.push(b);
+}
+function spawnParticles(px,py){
+  for(var i=0;i<5;i++){
+    var angle=random(0,TWO_PI);
+    var spd=random(1,3);
+    var p={x:px,y:py,vx:cos(angle)*spd,vy:sin(angle)*spd,r:3,life:20};
+    particles.push(p);
+  }
+}
+function setup(){
+  createCanvas(400,600);
+  for(var i=0;i<30;i++){
+    var s={x:random(width),y:random(height),spd:random(0.5,2)};
+    stars.push(s);
+  }
+  textAlign(LEFT,TOP);
+  textSize(16);
+}
+function draw(){
+  background(0);
+  fill(255);
+  for(var si=0;si<stars.length;si++){
+    var st=stars[si];
+    ellipse(st.x,st.y,2,2);
+    st.y+=st.spd;
+    if(st.y>height){
+      st.y=0;
+      st.x=random(width);
+    }
+  }
+  if(!gameOver){
+    if(keyIsDown(LEFT_ARROW)){
+      player.x-=player.speed;
+    }
+    if(keyIsDown(RIGHT_ARROW)){
+      player.x+=player.speed;
+    }
+    player.x=constrain(player.x,player.r,width-player.r);
+    var spaceDown=keyIsDown(32);
+    if(spaceDown && !prevSpace){
+      spawnBullet();
+    }
+    prevSpace=spaceDown;
+    if(frameCount%60===0){
+      spawnEnemy();
+    }
+  }
+  for(var bi=bullets.length-1;bi>=0;bi--){
+    var b=bullets[bi];
+    b.y-=b.spd;
+    if(b.y<-b.r){
+      bullets.splice(bi,1);
+    }
+  }
+  for(var ei=enemies.length-1;ei>=0;ei--){
+    var e=enemies[ei];
+    e.y+=e.spd;
+    if(e.y>height+e.r){
+      enemies.splice(ei,1);
+      continue;
+    }
+    if(!gameOver){
+      var dpe=dist(e.x,e.y,player.x,player.y);
+      if(dpe<e.r+player.r){
+        gameOver=true;
+      }
+    }
+    for(var bi2=bullets.length-1;bi2>=0;bi2--){
+      var b2=bullets[bi2];
+      var db=dist(e.x,e.y,b2.x,b2.y);
+      if(db<e.r+b2.r){
+        spawnParticles(e.x,e.y);
+        score+=1;
+        bullets.splice(bi2,1);
+        enemies.splice(ei,1);
+        break;
+      }
+    }
+  }
+  for(var pi=particles.length-1;pi>=0;pi--){
+    var p=particles[pi];
+    p.x+=p.vx;
+    p.y+=p.vy;
+    p.life--;
+    if(p.life<=0){
+      particles.splice(pi,1);
+    }
+  }
+  fill(0,255,0);
+  ellipse(player.x,player.y,player.r*2,player.r*2);
+  fill(255,0,0);
+  for(var bdraw=0;bdraw<bullets.length;bdraw++){
+    var bd=bullets[bdraw];
+    ellipse(bd.x,bd.y,bd.r*2,bd.r*2);
+  }
+  fill(0,0,255);
+  for(var edraw=0;edraw<enemies.length;edraw++){
+    var ed=enemies[edraw];
+    ellipse(ed.x,ed.y,ed.r*2,ed.r*2);
+  }
+  for(var pard=0;pard<particles.length;pard++){
+    var pr=particles[pard];
+    var alpha=map(pr.life,0,20,0,255);
+    fill(255,150,0,alpha);
+    ellipse(pr.x,pr.y,pr.r*2,pr.r*2);
+  }
+  fill(255);
+  text('Score: '+score,8,8);
+  if(gameOver){
+    textSize(32);
+    textAlign(CENTER,CENTER);
+    text('Game Over',width/2,height/2);
+  }
+}
