@@ -1,1 +1,65 @@
-const S=50,COLS=8,ROWS=8,W=400,H=400;let board=[];let current=1;let passCount=0;const dirs=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];function initBoard(){for(let r=0;r<ROWS;r++){board[r]=[];for(let c=0;c<COLS;c++){board[r][c]=0;}}board[3][3]=2;board[4][4]=2;board[3][4]=1;board[4][3]=1;passCount=0;}function inBounds(r,c){return r>=0&&r<ROWS&&c>=0&&c<COLS;}function flipsForMove(r,c,player){if(!inBounds(r,c))return[];if(board[r][c]!==0)return[];let opponent=player===1?2:1;let total=[];for(let di=0;di<dirs.length;di++){let dr=dirs[di][0],dc=dirs[di][1];let rr=r+dr,cc=c+dc;let line=[];while(inBounds(rr,cc)&&board[rr][cc]===opponent){line.push([rr,cc]);rr+=dr;cc+=dc;}if(line.length>0&&inBounds(rr,cc)&&board[rr][cc]===player){for(let k=0;k<line.length;k++){total.push(line[k]);}}}return total;}function getValidMoves(player){let moves=[];for(let r=0;r<ROWS;r++){for(let c=0;c<COLS;c++){let flips=flipsForMove(r,c,player);if(flips.length>0){moves.push({r:r,c:c,flips:flips});}}}return moves;}function makeMove(r,c,player,flips){board[r][c]=player;for(let i=0;i<flips.length;i++){let pos=flips[i];board[pos[0]][pos[1]]=player;}}function countPieces(){let black=0,white=0,empty=0;for(let r=0;r<ROWS;r++){for(let c=0;c<COLS;c++){if(board[r][c]===1)black++;else if(board[r][c]===2)white++;else empty++;}}return{black:black,white:white,empty:empty};}function setup(){createCanvas(W,H);initBoard();frameRate(60);}function draw(){background(34);stroke(0);fill(0,0);for(let r=0;r<ROWS;r++){for(let c=0;c<COLS;c++){rect(c*S,r*S,S,S);}}let moves=getValidMoves(current);for(let i=0;i<moves.length;i++){let m=moves[i];noStroke();fill(200,200,0,150);ellipse(m.c*S+S/2,m.r*S+S/2,10,10);}for(let r=0;r<ROWS;r++){for(let c=0;c<COLS;c++){if(board[r][c]!==0){if(board[r][c]===1)fill(0);else fill(255);stroke(0);ellipse(c*S+S/2,r*S+S/2,S-6,S-6);}}}let scores=countPieces();noStroke();fill(255);textSize(12);textAlign(LEFT,TOP);text('Black:'+scores.black+' White:'+scores.white,5,5);if(moves.length===0){fill(255,0,0);textAlign(CENTER,TOP);text('No moves for current player',W/2,5);}if(scores.empty===0||(getValidMoves(1).length===0&&getValidMoves(2).length===0)){fill(255);textAlign(CENTER,CENTER);let winner='Draw';if(scores.black>scores.white)winner='Black wins';else if(scores.white>scores.black)winner='White wins';text(winner,W/2,H/2);noLoop();}}function mousePressed(){let c=floor(mouseX/ S);let r=floor(mouseY/ S);if(!(r>=0&&r<ROWS&&c>=0&&c<COLS))return;let flips=flipsForMove(r,c,current);if(flips.length>0){makeMove(r,c,current,flips);current=current===1?2:1;passCount=0;if(getValidMoves(current).length===0){current=current===1?2:1;passCount++;if(getValidMoves(current).length===0)passCount++;}}}
+let canvasW=400,canvasH=600
+let paddle={w:90,h:12,x:canvasW/2,y:canvasH-40}
+let ball={x:canvasW/2,y:canvasH-60,r:6,vx:4,vy:-5}
+let blocks=[]
+let rows=6,cols=7
+let blockGap=5
+let blockH=20
+let blockW=(canvasW-(cols+1)*blockGap)/cols
+let colors=['#FF6B6B','#FFB86B','#FFD56B','#8BD36F','#6BCBFF','#A678FF']
+let particles=[]
+let score=0
+let gameOver=false
+function setup(){createCanvas(canvasW,canvasH);noStroke();textFont('Arial');createBlocks()}
+function createBlocks(){blocks=[]
+ for(let r=0;r<rows;r++){for(let c=0;c<cols;c++){let x=blockGap+c*(blockW+blockGap)
+ let y=40+r*(blockH+blockGap)
+ blocks.push({x:x,y:y,w:blockW,h:blockH,color:colors[r]})}}}
+function draw(){background(30)
+ updatePaddle()
+ drawBlocks()
+ drawPaddle()
+ if(!gameOver){updateBall();checkPaddleCollision();checkBlockCollisions()}
+ drawBall()
+ updateParticles()
+ drawUI()
+ if(gameOver){textAlign(CENTER, CENTER);textSize(32);fill(255);text('GAME OVER',width/2,height/2)}}
+function updatePaddle(){paddle.x=constrain(mouseX,paddle.w/2,width-paddle.w/2)}
+function drawPaddle(){fill(200);rect(paddle.x-paddle.w/2,paddle.y,paddle.w,paddle.h,4)}
+function updateBall(){ball.x+=ball.vx;ball.y+=ball.vy
+ if(ball.x-ball.r<0){ball.x=ball.r;ball.vx=-ball.vx}
+ if(ball.x+ball.r>width){ball.x=width-ball.r;ball.vx=-ball.vx}
+ if(ball.y-ball.r<0){ball.y=ball.r;ball.vy=-ball.vy}
+ if(ball.y-ball.r>height){gameOver=true;ball.vx=0;ball.vy=0}}
+function drawBall(){fill(255);ellipse(ball.x,ball.y,ball.r*2,ball.r*2)}
+function checkPaddleCollision(){if(ball.vy>0){let px=paddle.x-paddle.w/2
+ let py=paddle.y
+ if(ball.x>px && ball.x<px+paddle.w && ball.y+ball.r>py && ball.y-ball.r<py+paddle.h){let offset=(ball.x-paddle.x)/(paddle.w/2)
+ offset=constrain(offset,-1,1)
+ let maxA=PI/3
+ let angle=offset*maxA
+ let speed=Math.sqrt(ball.vx*ball.vx+ball.vy*ball.vy)
+ ball.vx=speed*Math.sin(angle)
+ ball.vy=-abs(speed*Math.cos(angle))
+ ball.y=py-ball.r}}}
+function checkBlockCollisions(){for(let i=blocks.length-1;i>=0;i--){let b=blocks[i]
+ let closestX=constrain(ball.x,b.x,b.x+b.w)
+ let closestY=constrain(ball.y,b.y,b.y+b.h)
+ let dx=ball.x-closestX
+ let dy=ball.y-closestY
+ if(dx*dx+dy*dy<=ball.r*ball.r){if(abs(dx)>abs(dy)){if(dx>0){ball.x=b.x+b.w+ball.r}else{ball.x=b.x-ball.r}
+ ball.vx=-ball.vx}else{if(dy>0){ball.y=b.y+b.h+ball.r}else{ball.y=b.y-ball.r}
+ ball.vy=-ball.vy}
+ let cx=closestX
+ let cy=closestY
+ for(let p=0;p<3;p++){particles.push({x:cx,y:cy,vx:random(-2,2),vy:random(-3,-0.5),life:15})}
+ blocks.splice(i,1)
+ score++}}}
+function drawBlocks(){for(let i=0;i<blocks.length;i++){let b=blocks[i]
+ fill(b.color);rect(b.x,b.y,b.w,b.h,4)}}
+function updateParticles(){for(let i=particles.length-1;i>=0;i--){let pt=particles[i]
+ pt.x+=pt.vx;pt.y+=pt.vy;pt.vy+=0.12;pt.life--
+ let alpha=constrain(map(pt.life,0,15,0,255),0,255)
+ fill(255,200,50,alpha);ellipse(pt.x,pt.y,4,4)
+ if(pt.life<=0){particles.splice(i,1)}}}
+function drawUI(){fill(255);textSize(18);textAlign(LEFT,TOP);text('Score: '+score,10,10)}
