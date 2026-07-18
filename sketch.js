@@ -2,7 +2,7 @@ var bullets=[];
 var enemies=[];
 var particles=[];
 var stars=[];
-var player={x:200,y:560,r:12,speed:5};
+var player={x:200,y:560,r:12,speed:5,shots:1};
 var score=0;
 var gameOver=false;
 var prevSpace=false;
@@ -11,8 +11,18 @@ function spawnEnemy(){
   enemies.push(e);
 }
 function spawnBullet(){
-  var b={x:player.x,y:player.y-player.r,r:4,spd:8};
-  bullets.push(b);
+  var total=player.shots;
+  if(total<1){
+    total=1;
+  }
+  var spread=PI/12;
+  for(var i=0;i<total;i++){
+    var offset=(i-(total-1)/2);
+    var angle=-HALF_PI+offset*spread;
+    var spd=8;
+    var b={x:player.x,y:player.y-player.r,r:4,spd:spd,vx:cos(angle)*spd,vy:sin(angle)*spd};
+    bullets.push(b);
+  }
 }
 function spawnParticles(px,py){
   for(var i=0;i<5;i++){
@@ -62,8 +72,9 @@ function draw(){
   }
   for(var bi=bullets.length-1;bi>=0;bi--){
     var b=bullets[bi];
-    b.y-=b.spd;
-    if(b.y<-b.r){
+    b.x+=b.vx;
+    b.y+=b.vy;
+    if(b.y<-b.r || b.x<-b.r || b.x>width+b.r){
       bullets.splice(bi,1);
     }
   }
@@ -80,6 +91,7 @@ function draw(){
         gameOver=true;
       }
     }
+    var hit=false;
     for(var bi2=bullets.length-1;bi2>=0;bi2--){
       var b2=bullets[bi2];
       var db=dist(e.x,e.y,b2.x,b2.y);
@@ -88,8 +100,15 @@ function draw(){
         score+=1;
         bullets.splice(bi2,1);
         enemies.splice(ei,1);
+        hit=true;
+        if(random()<0.1){
+          player.shots+=1;
+        }
         break;
       }
+    }
+    if(hit){
+      continue;
     }
   }
   for(var pi=particles.length-1;pi>=0;pi--){
